@@ -5,6 +5,9 @@ import node.blockchain.defi.DefiBlock;
 import node.blockchain.defi.DefiTransaction;
 import node.blockchain.defi.DefiTransactionValidator;
 import node.blockchain.merkletree.MerkleTree;
+import node.blockchain.ml_verification.MLBlock;
+import node.blockchain.ml_verification.MLTransactionValidator;
+import node.blockchain.ml_verification.ModelData;
 import node.communication.*;
 import node.communication.messaging.Message;
 import node.communication.messaging.Messager;
@@ -133,8 +136,11 @@ public class Node  {
             // hashOfTransaction = getSHAString(genesisTransaction.toString());
             // genesisTransactions.put(hashOfTransaction, genesisTransaction);
             addBlock(new DefiBlock(new HashMap<String, Transaction>(), "000000", 0));
-        }else{
+        }
+        else if (USE.equals("ML")) {
+            addBlock(new MLBlock(null, "000000", 0));
 
+            // TODO: Initialize relevant data
         }
     }
 
@@ -256,9 +262,11 @@ public class Node  {
                 validatorObjects[1] = accounts;
                 validatorObjects[2] = mempool;
 
-            }else{
-                tv = new DefiTransactionValidator(); // To be changed to another use case in the future
             }
+            else if (USE.equals("ML")) {
+                tv = new MLTransactionValidator();
+            }
+            else { tv = new DefiTransactionValidator(); }
 
             if(!tv.validate(validatorObjects)){
                 if(DEBUG_LEVEL == 1){System.out.println("Node " + myAddress.getPort() + "Transaction not valid");}
@@ -477,20 +485,24 @@ public class Node  {
             TransactionValidator tv;
             if(USE.equals("Defi")){
                 tv = new DefiTransactionValidator();
-            }else{
-                // Room to enable another use case 
-                tv = new DefiTransactionValidator();
             }
+            else if (USE.equals("ML")) {
+                tv = new MLTransactionValidator();
+            }
+            else { tv = new DefiTransactionValidator(); }
             
             for(String key : mempool.keySet()){
                 Transaction transaction = mempool.get(key);
-                Object[] validatorObjects = new Object[3];
+                Object[] validatorObjects = null;
                 if(USE.equals("Defi")){
+                    validatorObjects = new Object[3];
                     validatorObjects[0] = transaction;
                     validatorObjects[1] = accounts;
                     validatorObjects[2] = blockTransactions;
-                }else{
-                    // Validator objects will change according to another use case
+                }
+                else if (USE.equals("ML")) {
+                    validatorObjects = new Object[1];
+                    validatorObjects[0] = transaction;
                 }
                 tv.validate(validatorObjects);
                 blockTransactions.put(key, transaction);
@@ -501,10 +513,9 @@ public class Node  {
                     quorumBlock = new DefiBlock(blockTransactions,
                         getBlockHash(blockchain.getLast(), 0),
                                 blockchain.size());
-                }else{
-
-                    // Room to enable another use case 
-                    quorumBlock = new DefiBlock(blockTransactions,
+                }
+                else if (USE.equals("ML")) {
+                    quorumBlock = new MLBlock(blockTransactions,
                         getBlockHash(blockchain.getLast(), 0),
                                 blockchain.size());
                 }
@@ -771,26 +782,21 @@ public class Node  {
                 }
             }
 
-            Block newBlock;
-
+            Block newBlock = null;
             if(USE.equals("Defi")){
                 try {
                     newBlock = new DefiBlock(blockTransactions,
-                            getBlockHash(blockchain.getLast(), 0),
-                            blockchain.size());
-                } catch (NoSuchAlgorithmException e) {
-                    throw new RuntimeException(e);
+                            getBlockHash(blockchain.getLast(), 0), blockchain.size());
                 }
-            }else{
-                try {
-                    newBlock = new DefiBlock(blockTransactions,
-                            getBlockHash(blockchain.getLast(), 0),
-                            blockchain.size());
-                } catch (NoSuchAlgorithmException e) {
-                    throw new RuntimeException(e);
-                }
+                catch (NoSuchAlgorithmException e) { throw new RuntimeException(e); }
             }
-            
+            else if (USE.equals("ML")) {
+                try {
+                    newBlock = new MLBlock(blockTransactions,
+                            getBlockHash(blockchain.getLast(), 0), blockchain.size());
+                }
+                catch (NoSuchAlgorithmException e) { throw new RuntimeException(e); }
+            }
 
             return newBlock;
         }

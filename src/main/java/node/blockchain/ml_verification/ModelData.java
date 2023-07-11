@@ -1,8 +1,10 @@
 package node.blockchain.ml_verification;
 
+import node.blockchain.Transaction;
+
 import java.util.ArrayList;
 
-public class ModelData {
+public class ModelData extends Transaction {
     private final ArrayList<String> snapshotHashes;
     private final String datasetHash;
     private final String modelHash;
@@ -13,5 +15,12 @@ public class ModelData {
         this.datasetHash = datasetHash;
         this.modelHash = modelHash;
         this.isVerified = isVerified;
+    }
+
+    public boolean isVerified() { return isVerified; }
+
+    @Override
+    public String toString() {
+        return null;
     }
 }
