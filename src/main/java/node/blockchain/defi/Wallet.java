@@ -211,8 +211,8 @@ public class Wallet {
             Object[] data = new Object[2];
             data[0] = pubKeyString;
             data[1] = myAddress;
-            Messager.sendOneWayMessage(new Address(fullNodes.get(0).getPort(), fullNodes.get(0).getHost()), 
-            new Message(Message.Request.ALERT_WALLET, data), myAddress);
+            Messager.sendOneWayMessage(new Address(fullNodes.get(0).getPort(), fullNodes.get(0).getHost()),
+                    new Message(Message.Request.ALERT_WALLET, data), myAddress);
 
             System.out.println("===============================");
             System.out.println("Account: " + newAccount.getNickname() + "\n\n Pubkey: " + pubKeyString);

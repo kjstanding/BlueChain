@@ -4,14 +4,11 @@ import node.Node;
 import node.blockchain.Block;
 import node.blockchain.BlockSkeleton;
 import node.blockchain.Transaction;
-import node.blockchain.defi.DefiTransaction;
-import node.communication.*;
 import node.communication.messaging.Message;
 
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -79,7 +76,7 @@ public class ServerConnection extends Thread {
                 break;
             case RECEIVE_MEMPOOL:
                 Set<String> memPoolHashes = (HashSet<String>) incomingMessage.getMetadata();
-                node.receiveMempool(memPoolHashes, oout, oin);
+                node.receiveMemPool(memPoolHashes, oout, oin);
                 break;
             case QUORUM_READY:
                 node.receiveQuorumReady(oout, oin);
