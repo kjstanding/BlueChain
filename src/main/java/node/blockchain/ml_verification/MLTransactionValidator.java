@@ -6,7 +6,7 @@ public class MLTransactionValidator extends TransactionValidator {
 
     @Override
     public boolean validate(Object[] objects) {
-        ModelData modelData = (ModelData) objects [0];
-        return modelData.isVerified();
+        // TODO: Possibly change validator
+        return true;
     }
 }

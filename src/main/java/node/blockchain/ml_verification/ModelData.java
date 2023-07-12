@@ -5,19 +5,27 @@ import node.blockchain.Transaction;
 import java.util.ArrayList;
 
 public class ModelData extends Transaction {
-    private final ArrayList<String> snapshotHashes;
-    private final String datasetHash;
-    private final String modelHash;
-    private final boolean isVerified;
+    // Hashes of model training data
+    private ArrayList<String> snapshotHashes;
+    private final String datasetHash = null;
+    private final String modelHash = null;
 
-    public ModelData(ArrayList<String> snapshotHashes, String datasetHash, String modelHash, boolean isVerified){
-        this.snapshotHashes = snapshotHashes;
-        this.datasetHash = datasetHash;
-        this.modelHash = modelHash;
-        this.isVerified = isVerified;
+    private final String snapshotsFilePath;
+
+    private boolean isVerified;
+
+    public ModelData(String snapshotsFilePath) {
+        this.snapshotsFilePath = snapshotsFilePath;
+        this.isVerified = false;
     }
 
     public boolean isVerified() { return isVerified; }
+    public void setVerified(boolean verified) { isVerified = verified; }
+
+    public ArrayList<String> getSnapshotHashes() { return snapshotHashes; }
+    public void setSnapshotHashes(ArrayList<String> snapshotHashes) { this.snapshotHashes = snapshotHashes; }
+
+    public String getSnapshotsFilePath() { return snapshotsFilePath; }
 
     @Override
     public String toString() {
