@@ -125,7 +125,7 @@ public class Node  {
     public int getMinConnections(){return this.MIN_CONNECTIONS;}
     public Address getAddress(){return this.myAddress;}
     public ArrayList<Address> getLocalPeers(){return this.localPeers;}
-    public HashMap<String, Transaction> getMempool(){return this.memPool;}
+    public HashMap<String, Transaction> getMemPool(){return this.memPool;}
     public LinkedList<Block> getBlockchain(){return blockchain;}
 
     /**
@@ -139,8 +139,7 @@ public class Node  {
             addBlock(new DefiBlock(new HashMap<>(), "000000", 0));
         }
         else if (USE.equals("ML")) {
-            addBlock(new MLBlock(new HashMap<>(), "000000", 0));
-
+            addBlock(new MLBlock(new HashMap<>(), "000000", 0, true));
             // TODO: Initialize relevant data
         }
     }
@@ -232,7 +231,6 @@ public class Node  {
         verifyTransaction(transaction);
     }
 
-
     public void verifyTransaction(Transaction transaction){
         synchronized(memPoolLock){
             if (Utils.containsTransactionInMap(transaction, memPool)) return;
@@ -315,7 +313,6 @@ public class Node  {
                             // we are behind, quorum already happened / failed
                             reply = new Message(Message.Request.PING);
                             //blockCatchUp();
-
                         }
                         mp.getOout().writeObject(reply);
                         mp.getOout().flush();
@@ -333,7 +330,7 @@ public class Node  {
     }
 
     //Reconcile blocks
-    public void receiveQuorumReady(ObjectOutputStream oout, ObjectInputStream oin){
+    public void receiveQuorumReady(ObjectOutputStream oOut, ObjectInputStream oIn){
         synchronized (quorumReadyVotesLock){
             while(state != 1){
                 try {
@@ -356,17 +353,17 @@ public class Node  {
                         System.out.println("Node " + myAddress.getPort()
                                 + ": not in quorum? q: " + quorum + " my addr: " + myAddress);
                     }
-                    oout.writeObject(new Message(Message.Request.RECONCILE_BLOCK,
+                    oOut.writeObject(new Message(Message.Request.RECONCILE_BLOCK,
                             new Object[]{currentBlock.getBlockId(), getBlockHash(currentBlock, 0)}));
-                    oout.flush();
-                    Message reply = (Message) oin.readObject();
+                    oOut.flush();
+                    Message reply = (Message) oIn.readObject();
 
                     if(reply.getRequest().name().equals("RECONCILE_BLOCK")){
                         //blockCatchUp();
                     }
                 }else{
-                    oout.writeObject(new Message(Message.Request.PING));
-                    oout.flush();
+                    oOut.writeObject(new Message(Message.Request.PING));
+                    oOut.flush();
                     quorumReadyVotes++;
                     if(quorumReadyVotes == quorum.size() - 1){
                         quorumReadyVotes = 0;
@@ -434,7 +431,6 @@ public class Node  {
         resolveMemPool(keys, oout, oin);
     }
 
-
     public void resolveMemPool(Set<String> keys, ObjectOutputStream oout, ObjectInputStream oin) {
         synchronized(memPoolRoundsLock){
             if(DEBUG_LEVEL == 1) System.out.println("Node " + myAddress.getPort() + ": receiveMemPool invoked");
@@ -488,6 +484,21 @@ public class Node  {
             /* Make sure compiled transactions don't conflict */
             HashMap<String, Transaction> blockTransactions = new HashMap<>();
 
+            /* blockTransactions will hold a single transaction (modelData). There also really isn't any
+            * reason to run a transaction validator to determine whether we append it to the block
+            * since the model will be appended to the block whether it is validated or not.
+            *
+            * However, we could change the use case of the transaction validator to run the re-computation
+            * task here. Regardless of whether we do that in the tValidator or not, this spot in the code
+            * seems to make the most sense to run re-computation.
+            *
+            * That process will look like running the algorithm to determine what intervals need to be recomputed
+            * and then which interval this node specifically needs to recompute. The node will then report
+            * whether it validates or invalidates its given interval to all other nodes in the quorum.
+            * Once all quorum members have recomputed their respective intervals and subsequently reported
+            * their endorsements, a decision needs to be made of whether to mark the modelData as validated
+            * or not. Once that decision has been made the network can mode forward from this point. */
+
             TransactionValidator tv;
             if(USE.equals("Defi")){
                 tv = new DefiTransactionValidator();
@@ -522,8 +533,7 @@ public class Node  {
                 }
                 else if (USE.equals("ML")) {
                     quorumBlock = new MLBlock(blockTransactions,
-                        getBlockHash(blockchain.getLast(), 0),
-                                blockchain.size());
+                            getBlockHash(blockchain.getLast(), 0), blockchain.size());
                 }
 
             } catch (NoSuchAlgorithmException e) {
@@ -538,7 +548,8 @@ public class Node  {
         String blockHash;
         byte[] sig;
 
-        try {blockHash = getBlockHash(quorumBlock, 0);
+        try {
+            blockHash = getBlockHash(quorumBlock, 0);
             sig = signHash(blockHash, privateKey);
         } catch (NoSuchAlgorithmException e) {throw new RuntimeException(e);}
 
@@ -602,7 +613,7 @@ public class Node  {
 
     public void tallyQuorumSigs(){
         synchronized (blockLock) {
-            resetMempool();
+            resetMemPool();
 
             if (DEBUG_LEVEL == 1) {System.out.println("Node " + myAddress.getPort() + ": tallyQuorumSigs invoked");}
 
@@ -677,7 +688,7 @@ public class Node  {
         }
     }
 
-    private void resetMempool(){
+    private void resetMemPool(){
         synchronized(memPoolLock){
             memPool = new HashMap<>();
         }
@@ -1000,7 +1011,6 @@ public class Node  {
             }
         }
     }  
-
 
     /**
      * HeartBeatMonitor is a thread which will periodically 'ping' nodes which this node is connected to.

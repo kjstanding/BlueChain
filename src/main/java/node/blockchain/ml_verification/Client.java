@@ -175,7 +175,7 @@ public class Client {
         System.out.println("File path to model snapshots?");
         String modelSnapshotsFilePath = reader.readLine();
 
-        ModelData modelData = new ModelData(modelSnapshotsFilePath);
+        ModelData modelData = new ModelData(modelSnapshotsFilePath, String.valueOf(System.currentTimeMillis()));
 
         System.out.println("Submitting model to nodes: ");
         for(Address address : fullNodes){
