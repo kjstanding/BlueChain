@@ -7,10 +7,15 @@ public class ModelData extends Transaction {
     private final String snapshotsFilePath;
     private boolean[] intervalStates;
 
-    public ModelData(String snapshotsFilePath, String timestamp) {
+    public boolean[] getIntervalStates() {
+        return intervalStates;
+    }
+
+    public ModelData(String snapshotsFilePath, String timestamp, boolean[] intervalStates) {
         this.snapshotsFilePath = snapshotsFilePath;
         UID = Hashing.getSHAString(snapshotsFilePath + timestamp);
         this.timestamp = timestamp;
+        this.intervalStates = intervalStates;
     }
 
     public String getSnapshotsFilePath() { return snapshotsFilePath; }

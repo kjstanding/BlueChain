@@ -93,6 +93,10 @@ public class ServerConnection extends Thread {
                 Object[] data = (Object[]) incomingMessage.getMetadata();
                 node.alertWallet((String) data[0], (Address) data[1]);
                 break;
+            case RECEIVE_INTERVAL_VALIDATION:
+                Object[] snapshotPair = (Object[]) incomingMessage.getMetadata();
+                node.receiveInternalValidation((boolean)snapshotPair[1], (int)snapshotPair[0]);
+                break;
         }
     }
 }

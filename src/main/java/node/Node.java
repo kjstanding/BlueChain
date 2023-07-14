@@ -10,6 +10,7 @@ import node.blockchain.defi.DefiTransactionValidator;
 import node.blockchain.merkletree.MerkleTree;
 import node.blockchain.ml_verification.MLBlock;
 import node.blockchain.ml_verification.MLTransactionValidator;
+import node.blockchain.ml_verification.ModelData;
 import node.communication.Address;
 import node.communication.BlockSignature;
 import node.communication.ClientConnection;
@@ -17,6 +18,7 @@ import node.communication.ServerConnection;
 import node.communication.messaging.Message;
 import node.communication.messaging.Messager;
 import node.communication.messaging.MessagerPack;
+import node.communication.messaging.Message.Request;
 import node.communication.utils.Hashing;
 import node.communication.utils.Utils;
 
@@ -29,6 +31,8 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.util.*;
+
+import javax.swing.text.StyledEditorKit.BoldAction;
 
 import static node.communication.utils.DSA.*;
 import static node.communication.utils.Hashing.getBlockHash;
@@ -82,11 +86,13 @@ public class Node  {
         accountsLock = new Object();
         memPoolLock = new Object();
         blockLock = new Object();
+        validationLock = new Object();
 
         /* Multithreaded Counters for Stateful Servant */
         memPoolRounds = 0;
         quorumReadyVotes = 0;
         state = 0;
+        validationResponses = 0;
 
         InetAddress ip;
 
@@ -103,6 +109,7 @@ public class Node  {
         localPeers = new ArrayList<>();
         memPool = new HashMap<>();
         accountsToAlert = new HashMap<>();
+        validationPairs = new HashMap<>();
 
         /* Public-Private (DSA) Keys*/
         KeyPair keys = generateDSAKeyPair();
@@ -476,6 +483,68 @@ public class Node  {
         }
     }
 
+
+    /**
+     * Implement this
+     * @param modelData
+     * @return
+     */
+    public int deriveTasks(ModelData modelData){
+        return 1;
+    }
+
+    private boolean isMalicious = false;
+
+    public void recomputeTasks(ModelData modelData){
+        mySnapshot = deriveTasks(modelData);
+
+        // Recompute this snapshot
+
+        boolean[] snapshots = modelData.getIntervalStates();
+        boolean mySnapshotIsPoisoned = snapshots[mySnapshot];
+
+        if(isMalicious){
+            retVal = !mySnapshotIsPoisoned;
+        }else{
+            retVal = mySnapshotIsPoisoned;
+        }
+
+        Object[] retPair = new Object[]{retVal, mySnapshot};
+
+        sendOneWayMessageQuorum(new Message(Request.RECEIVE_INTERVAL_VALIDATION, retPair));
+    }
+
+    boolean retVal;
+    int mySnapshot;
+    HashMap<Integer, ArrayList<Boolean>> validationPairs;
+    boolean[] finalizedSnapshots;
+
+    public void receiveInternalValidation(boolean isValid, int snapshot){
+        synchronized(validationLock){
+
+            if(validationPairs.get(snapshot) == null){
+                ArrayList<Boolean> bools = new ArrayList<>();
+                bools.add(isValid);
+                validationPairs.put(snapshot, bools);
+            }else{
+                validationPairs.get(snapshot).add(isValid);
+            }
+
+            if(validationPairs.size() == deriveQuorum(blockchain.getLast(), 0).size() - 1){
+                validationPairs.get(mySnapshot).add(retVal);
+
+                /* Iterate through map, tally popular bools */
+
+
+                // finalizedSnapshots = something
+
+
+            }
+        }
+    }
+
+
+
     public void constructBlock(){
         synchronized(memPoolLock){
             if(DEBUG_LEVEL == 1) System.out.println("Node " + myAddress.getPort() + ": constructBlock invoked");
@@ -525,6 +594,32 @@ public class Node  {
                 blockTransactions.put(key, transaction);
             }
 
+
+
+            /* We have all transactions (1) organized, agreed upon, validated. About to construct the block*/
+            
+            /* Implement aglorithm
+             * 
+             * runAlgorithm(blockTransactions.get(0));
+             * 
+             */
+
+
+            /* Get the tx */
+            //ArrayList<ModelData> modelDatas = new ArrayList<ModelData>(blockTransactions.keySet());
+            recomputeTasks(new ModelData("", "", null));
+            
+
+
+
+
+
+
+
+
+
+
+
             try {
                 if(USE.equals("Defi")){
                     quorumBlock = new DefiBlock(blockTransactions,
@@ -532,8 +627,9 @@ public class Node  {
                                 blockchain.size());
                 }
                 else if (USE.equals("ML")) {
+                    /* Maybe put in the finalizedSnapshots is block */
                     quorumBlock = new MLBlock(blockTransactions,
-                            getBlockHash(blockchain.getLast(), 0), blockchain.size());
+                            getBlockHash(blockchain.getLast(), 0), blockchain.size(), true);
                 }
 
             } catch (NoSuchAlgorithmException e) {
@@ -694,6 +790,7 @@ public class Node  {
         }
     }
 
+    /* Add bools */
     public void sendSkeleton(){
         synchronized (lock){
             //state = 0;
@@ -720,6 +817,7 @@ public class Node  {
         }
     }
 
+    /* Add bools */
     public void sendSkeleton(BlockSkeleton skeleton){
         synchronized (lock){
             if(DEBUG_LEVEL == 1) {
@@ -827,7 +925,7 @@ public class Node  {
             else if (USE.equals("ML")) {
                 try {
                     newBlock = new MLBlock(blockTransactions,
-                            getBlockHash(blockchain.getLast(), 0), blockchain.size());
+                            getBlockHash(blockchain.getLast(), 0), blockchain.size(), true);
                 }
                 catch (NoSuchAlgorithmException e) { throw new RuntimeException(e); }
             }
@@ -1054,8 +1152,8 @@ public class Node  {
 
     private final int MAX_PEERS, NUM_NODES, QUORUM_SIZE, MIN_CONNECTIONS, DEBUG_LEVEL, MINIMUM_TRANSACTIONS;
     private final Object lock, quorumLock, memPoolLock, quorumReadyVotesLock,
-            memPoolRoundsLock, sigRoundsLock, blockLock, accountsLock;
-    private int quorumReadyVotes, memPoolRounds;
+            memPoolRoundsLock, sigRoundsLock, blockLock, accountsLock, validationLock;
+    private int quorumReadyVotes, memPoolRounds, validationResponses;
     private ArrayList<Address> globalPeers;
     private final ArrayList<Address> localPeers;
     private HashMap<String, Transaction> memPool;
