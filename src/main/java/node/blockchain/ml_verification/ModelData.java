@@ -5,20 +5,17 @@ import node.communication.utils.Hashing;
 
 public class ModelData extends Transaction {
     private final String snapshotsFilePath;
-    private boolean[] intervalStates;
-
-    public boolean[] getIntervalStates() {
-        return intervalStates;
-    }
+    private final boolean[] intervalsValidity;
 
     public ModelData(String snapshotsFilePath, String timestamp, boolean[] intervalStates) {
         this.snapshotsFilePath = snapshotsFilePath;
-        UID = Hashing.getSHAString(snapshotsFilePath + timestamp);
+        this.intervalsValidity = intervalStates;
         this.timestamp = timestamp;
-        this.intervalStates = intervalStates;
+        UID = Hashing.getSHAString(snapshotsFilePath + timestamp);
     }
 
     public String getSnapshotsFilePath() { return snapshotsFilePath; }
+    public boolean[] getIntervalsValidity() { return intervalsValidity; }
 
     @Override
     public String toString() { return "FilePath: " + snapshotsFilePath; }

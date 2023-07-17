@@ -99,7 +99,7 @@ public class Client {
         BufferedReader mainReader = new BufferedReader(new InputStreamReader(System.in));
 
         // Reading data using readLine
-        String input = "";
+        String input;
         int port = 7999;
         if(args.length > 0){
             if(args[0].equals("-port")){
@@ -154,7 +154,7 @@ public class Client {
             String hostname = reader.readLine();
             System.out.println("Full Node port?: ");
             String port = reader.readLine();
-            fullNodes.add(new Address(Integer.valueOf(port), hostname));
+            fullNodes.add(new Address(Integer.parseInt(port), hostname));
         }else if(response.equals("r")){
             System.out.println("Full Node index to remove?: \n" + fullNodes);
             int index = Integer.parseInt(reader.readLine());
@@ -175,7 +175,7 @@ public class Client {
         System.out.println("File path to model snapshots?");
         String modelSnapshotsFilePath = reader.readLine();
 
-        ModelData modelData = new ModelData(modelSnapshotsFilePath, String.valueOf(System.currentTimeMillis()));
+        ModelData modelData = new ModelData(modelSnapshotsFilePath, String.valueOf(System.currentTimeMillis()),null);
 
         System.out.println("Submitting model to nodes: ");
         for(Address address : fullNodes){

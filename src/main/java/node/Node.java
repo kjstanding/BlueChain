@@ -32,8 +32,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.util.*;
 
-import javax.swing.text.StyledEditorKit.BoldAction;
-
 import static node.communication.utils.DSA.*;
 import static node.communication.utils.Hashing.getBlockHash;
 import static node.communication.utils.Hashing.getSHAString;
@@ -59,6 +57,7 @@ import static node.communication.utils.Utils.containsAddress;
  * Beware, any methods below are a WIP
  */
 public class Node  {
+    // TODO: Initialize isMalicious
     /**
      * Node constructor creates node and begins server socket to accept connections
      *
@@ -76,6 +75,7 @@ public class Node  {
         QUORUM_SIZE = quorumSize;
         DEBUG_LEVEL = debugLevel;
         MINIMUM_TRANSACTIONS = minimumTransaction;
+        isMalicious = false;
 
         /* Locks for Multithreading */
         lock =  new Object();
@@ -485,65 +485,61 @@ public class Node  {
 
 
     /**
-     * Implement this
-     * @param modelData
-     * @return
+     * Derives the training interval for the node to re-compute for validation process.
+     * Uses a weight analysis-algorithm and a randomized, deterministic assignment process.
+     * @param modelData modelData to derive re-computation task from
+     * @return index of which interval to re-compute
      */
-    public int deriveTasks(ModelData modelData){
+    public int deriveTask(ModelData modelData){
+        // TODO: Run python script and implement logic to randomize assignment of nodes to training intervals
         return 1;
     }
 
-    private boolean isMalicious = false;
+    public void validateModel(ModelData modelData){
+        int myIntervalIndex = deriveTask(modelData);
 
-    public void recomputeTasks(ModelData modelData){
-        mySnapshot = deriveTasks(modelData);
+        // Simulate re-computation and malicious behavior
+        boolean isMyIntervalValid = modelData.getIntervalsValidity()[myIntervalIndex];
+        if (isMalicious) { isMyIntervalValid = !isMyIntervalValid; }
 
-        // Recompute this snapshot
+        Object[] validationPair = new Object[] {isMyIntervalValid, myIntervalIndex};
 
-        boolean[] snapshots = modelData.getIntervalStates();
-        boolean mySnapshotIsPoisoned = snapshots[mySnapshot];
-
-        if(isMalicious){
-            retVal = !mySnapshotIsPoisoned;
-        }else{
-            retVal = mySnapshotIsPoisoned;
-        }
-
-        Object[] retPair = new Object[]{retVal, mySnapshot};
-
-        sendOneWayMessageQuorum(new Message(Request.RECEIVE_INTERVAL_VALIDATION, retPair));
+        sendOneWayMessageQuorum(new Message(Request.RECEIVE_INTERVAL_VALIDATION, validationPair));
+        // IS THIS OKAY?
+        receiveIntervalValidation(isMyIntervalValid, myIntervalIndex);
     }
 
-    boolean retVal;
-    int mySnapshot;
-    HashMap<Integer, ArrayList<Boolean>> validationPairs;
-    boolean[] finalizedSnapshots;
-
-    public void receiveInternalValidation(boolean isValid, int snapshot){
+    public void receiveIntervalValidation(boolean isValidated, int intervalIndex) {
         synchronized(validationLock){
+            validationResponses++;
+            validationPairs.computeIfAbsent(intervalIndex, k -> new ArrayList<>());
+            validationPairs.get(intervalIndex).add(isValidated);
 
-            if(validationPairs.get(snapshot) == null){
-                ArrayList<Boolean> bools = new ArrayList<>();
-                bools.add(isValid);
-                validationPairs.put(snapshot, bools);
-            }else{
-                validationPairs.get(snapshot).add(isValid);
-            }
+            if (validationResponses == deriveQuorum(blockchain.getLast(), 0).size()) {
+                validationResponses = 0;
+                HashMap<Integer, Boolean> intervalValidations = new HashMap<>();
+                for (Map.Entry<Integer, ArrayList<Boolean>> entry : validationPairs.entrySet()) {
+                    int interval = entry.getKey();
+                    ArrayList<Boolean> subQuorumValidates = entry.getValue();
+                    int validateVotes = 0;
+                    int invalidateVotes = 0;
 
-            if(validationPairs.size() == deriveQuorum(blockchain.getLast(), 0).size() - 1){
-                validationPairs.get(mySnapshot).add(retVal);
-
-                /* Iterate through map, tally popular bools */
-
-
-                // finalizedSnapshots = something
-
-
+                    for (Boolean nodeValidate : subQuorumValidates) {
+                        if (nodeValidate) {
+                            validateVotes++;
+                        } else {
+                            invalidateVotes++;
+                        }
+                    }
+                    if (validateVotes > invalidateVotes) {
+                        intervalValidations.put(interval, true);
+                    } else {
+                        intervalValidations.put(interval, false);
+                    }
+                }
             }
         }
     }
-
-
 
     public void constructBlock(){
         synchronized(memPoolLock){
@@ -552,21 +548,6 @@ public class Node  {
             
             /* Make sure compiled transactions don't conflict */
             HashMap<String, Transaction> blockTransactions = new HashMap<>();
-
-            /* blockTransactions will hold a single transaction (modelData). There also really isn't any
-            * reason to run a transaction validator to determine whether we append it to the block
-            * since the model will be appended to the block whether it is validated or not.
-            *
-            * However, we could change the use case of the transaction validator to run the re-computation
-            * task here. Regardless of whether we do that in the tValidator or not, this spot in the code
-            * seems to make the most sense to run re-computation.
-            *
-            * That process will look like running the algorithm to determine what intervals need to be recomputed
-            * and then which interval this node specifically needs to recompute. The node will then report
-            * whether it validates or invalidates its given interval to all other nodes in the quorum.
-            * Once all quorum members have recomputed their respective intervals and subsequently reported
-            * their endorsements, a decision needs to be made of whether to mark the modelData as validated
-            * or not. Once that decision has been made the network can mode forward from this point. */
 
             TransactionValidator tv;
             if(USE.equals("Defi")){
@@ -594,31 +575,23 @@ public class Node  {
                 blockTransactions.put(key, transaction);
             }
 
+            /* blockTransactions will hold a single transaction (modelData). There also really isn't any
+             * reason to run a transaction validator to determine whether we append it to the block
+             * since the model will be appended to the block whether it is validated or not.
+             *
+             * However, we could change the use case of the transaction validator to run the re-computation
+             * task here. Regardless of whether we do that in the tValidator or not, this spot in the code
+             * seems to make the most sense to run re-computation.
+             *
+             * That process will look like running the algorithm to determine what intervals need to be recomputed
+             * and then which interval this node specifically needs to recompute. The node will then report
+             * whether it validates or invalidates its given interval to all other nodes in the quorum.
+             * Once all quorum members have recomputed their respective intervals and subsequently reported
+             * their endorsements, a decision needs to be made of whether to mark the modelData as validated
+             * or not. Once that decision has been made the network can mode forward from this point. */
 
-
-            /* We have all transactions (1) organized, agreed upon, validated. About to construct the block*/
-            
-            /* Implement aglorithm
-             * 
-             * runAlgorithm(blockTransactions.get(0));
-             * 
-             */
-
-
-            /* Get the tx */
-            //ArrayList<ModelData> modelDatas = new ArrayList<ModelData>(blockTransactions.keySet());
-            recomputeTasks(new ModelData("", "", null));
-            
-
-
-
-
-
-
-
-
-
-
+            ModelData submittedModel = (ModelData) blockTransactions.values().iterator().next();
+            validateModel(submittedModel);
 
             try {
                 if(USE.equals("Defi")){
@@ -627,7 +600,7 @@ public class Node  {
                                 blockchain.size());
                 }
                 else if (USE.equals("ML")) {
-                    /* Maybe put in the finalizedSnapshots is block */
+                    /* Maybe put in the finalizedSnapshots in block */
                     quorumBlock = new MLBlock(blockTransactions,
                             getBlockHash(blockchain.getLast(), 0), blockchain.size(), true);
                 }
@@ -1166,4 +1139,6 @@ public class Node  {
     private final PrivateKey privateKey;
     private int state;
     private final String USE;
+    private final boolean isMalicious;
+    private HashMap<Integer, ArrayList<Boolean>> validationPairs;
 }

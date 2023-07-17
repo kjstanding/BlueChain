@@ -94,8 +94,8 @@ public class ServerConnection extends Thread {
                 node.alertWallet((String) data[0], (Address) data[1]);
                 break;
             case RECEIVE_INTERVAL_VALIDATION:
-                Object[] snapshotPair = (Object[]) incomingMessage.getMetadata();
-                node.receiveInternalValidation((boolean)snapshotPair[1], (int)snapshotPair[0]);
+                Object[] validationPair = (Object[]) incomingMessage.getMetadata();
+                node.receiveIntervalValidation((boolean) validationPair[0], (int) validationPair[1]);
                 break;
         }
     }
