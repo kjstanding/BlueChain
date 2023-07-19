@@ -175,7 +175,9 @@ public class Client {
         System.out.println("File path to model snapshots?");
         String modelSnapshotsFilePath = reader.readLine();
 
-        ModelData modelData = new ModelData(modelSnapshotsFilePath, String.valueOf(System.currentTimeMillis()),null);
+        // Hard code:
+        boolean[] myArray = {true, true, true, true, true};
+        ModelData modelData = new ModelData(modelSnapshotsFilePath, String.valueOf(System.currentTimeMillis()), myArray);
 
         System.out.println("Submitting model to nodes: ");
         for(Address address : fullNodes){
@@ -197,7 +199,6 @@ public class Client {
         } catch (IOException e) {
             System.out.println("Full node at " + address + " appears down.");
         } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }

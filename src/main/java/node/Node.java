@@ -22,9 +22,7 @@ import node.communication.messaging.Message.Request;
 import node.communication.utils.Hashing;
 import node.communication.utils.Utils;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.math.BigInteger;
 import java.net.*;
 import java.security.KeyPair;
@@ -57,7 +55,6 @@ import static node.communication.utils.Utils.containsAddress;
  * Beware, any methods below are a WIP
  */
 public class Node  {
-    // TODO: Initialize isMalicious
     /**
      * Node constructor creates node and begins server socket to accept connections
      *
@@ -65,8 +62,8 @@ public class Node  {
      * @param maxPeers           Maximum amount of peer connections to maintain
      * @param initialConnections How many nodes we want to attempt to connect to on start
      */
-    public Node(String use, int port, int maxPeers, int initialConnections,
-                int numNodes, int quorumSize, int minimumTransaction, int debugLevel) {
+    public Node(String use, int port, int maxPeers, int initialConnections, int numNodes,
+                int quorumSize, int minimumTransaction, int debugLevel, boolean isMalicious) {
         /* Configurations */
         USE = use;
         MIN_CONNECTIONS = initialConnections;
@@ -75,7 +72,7 @@ public class Node  {
         QUORUM_SIZE = quorumSize;
         DEBUG_LEVEL = debugLevel;
         MINIMUM_TRANSACTIONS = minimumTransaction;
-        isMalicious = false;
+        IS_MALICIOUS = isMalicious;
 
         /* Locks for Multithreading */
         lock =  new Object();
@@ -109,7 +106,8 @@ public class Node  {
         localPeers = new ArrayList<>();
         memPool = new HashMap<>();
         accountsToAlert = new HashMap<>();
-        validationPairs = new HashMap<>();
+        validationVotes = new HashMap<>();
+        validationComplete = false;
 
         /* Public-Private (DSA) Keys*/
         KeyPair keys = generateDSAKeyPair();
@@ -146,7 +144,7 @@ public class Node  {
             addBlock(new DefiBlock(new HashMap<>(), "000000", 0));
         }
         else if (USE.equals("ML")) {
-            addBlock(new MLBlock(new HashMap<>(), "000000", 0, true));
+            addBlock(new MLBlock(new HashMap<>(), "000000", 0, null, true));
             // TODO: Initialize relevant data
         }
     }
@@ -483,27 +481,25 @@ public class Node  {
         }
     }
 
-
     /**
      * Derives the training interval for the node to re-compute for validation process.
      * Uses a weight analysis-algorithm and a randomized, deterministic assignment process.
      * @param modelData modelData to derive re-computation task from
      * @return index of which interval to re-compute
      */
-    public int deriveTask(ModelData modelData){
-        // TODO: Run python script and implement logic to randomize assignment of nodes to training intervals
+    public int deriveTask(ModelData modelData) {
+        // TODO: Implement weight analysis algorithm
         return 1;
     }
 
-    public void validateModel(ModelData modelData){
+    public void validateModel(ModelData modelData) {
         int myIntervalIndex = deriveTask(modelData);
 
         // Simulate re-computation and malicious behavior
         boolean isMyIntervalValid = modelData.getIntervalsValidity()[myIntervalIndex];
-        if (isMalicious) { isMyIntervalValid = !isMyIntervalValid; }
+        if (IS_MALICIOUS) isMyIntervalValid = !isMyIntervalValid;
 
         Object[] validationPair = new Object[] {isMyIntervalValid, myIntervalIndex};
-
         sendOneWayMessageQuorum(new Message(Request.RECEIVE_INTERVAL_VALIDATION, validationPair));
         // IS THIS OKAY?
         receiveIntervalValidation(isMyIntervalValid, myIntervalIndex);
@@ -512,24 +508,21 @@ public class Node  {
     public void receiveIntervalValidation(boolean isValidated, int intervalIndex) {
         synchronized(validationLock){
             validationResponses++;
-            validationPairs.computeIfAbsent(intervalIndex, k -> new ArrayList<>());
-            validationPairs.get(intervalIndex).add(isValidated);
+            validationVotes.computeIfAbsent(intervalIndex, k -> new ArrayList<>());
+            validationVotes.get(intervalIndex).add(isValidated);
 
             if (validationResponses == deriveQuorum(blockchain.getLast(), 0).size()) {
                 validationResponses = 0;
-                HashMap<Integer, Boolean> intervalValidations = new HashMap<>();
-                for (Map.Entry<Integer, ArrayList<Boolean>> entry : validationPairs.entrySet()) {
+                intervalValidations = new HashMap<>();
+                for (Map.Entry<Integer, ArrayList<Boolean>> entry : validationVotes.entrySet()) {
                     int interval = entry.getKey();
                     ArrayList<Boolean> subQuorumValidates = entry.getValue();
                     int validateVotes = 0;
                     int invalidateVotes = 0;
 
                     for (Boolean nodeValidate : subQuorumValidates) {
-                        if (nodeValidate) {
-                            validateVotes++;
-                        } else {
-                            invalidateVotes++;
-                        }
+                        if (nodeValidate) { validateVotes++; }
+                        else { invalidateVotes++; }
                     }
                     if (validateVotes > invalidateVotes) {
                         intervalValidations.put(interval, true);
@@ -537,6 +530,8 @@ public class Node  {
                         intervalValidations.put(interval, false);
                     }
                 }
+                validationComplete = true;
+                validationVotes = new HashMap<>();
             }
         }
     }
@@ -575,23 +570,25 @@ public class Node  {
                 blockTransactions.put(key, transaction);
             }
 
-            /* blockTransactions will hold a single transaction (modelData). There also really isn't any
-             * reason to run a transaction validator to determine whether we append it to the block
-             * since the model will be appended to the block whether it is validated or not.
-             *
-             * However, we could change the use case of the transaction validator to run the re-computation
-             * task here. Regardless of whether we do that in the tValidator or not, this spot in the code
-             * seems to make the most sense to run re-computation.
-             *
-             * That process will look like running the algorithm to determine what intervals need to be recomputed
-             * and then which interval this node specifically needs to recompute. The node will then report
-             * whether it validates or invalidates its given interval to all other nodes in the quorum.
-             * Once all quorum members have recomputed their respective intervals and subsequently reported
-             * their endorsements, a decision needs to be made of whether to mark the modelData as validated
-             * or not. Once that decision has been made the network can mode forward from this point. */
-
             ModelData submittedModel = (ModelData) blockTransactions.values().iterator().next();
             validateModel(submittedModel);
+
+            while (!validationComplete) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            validationComplete = false;
+
+            boolean isVerified = true;
+            for (boolean validation : intervalValidations.values()) {
+                if (!validation) {
+                    isVerified = false;
+                    break;
+                }
+            }
 
             try {
                 if(USE.equals("Defi")){
@@ -600,9 +597,8 @@ public class Node  {
                                 blockchain.size());
                 }
                 else if (USE.equals("ML")) {
-                    /* Maybe put in the finalizedSnapshots in block */
-                    quorumBlock = new MLBlock(blockTransactions,
-                            getBlockHash(blockchain.getLast(), 0), blockchain.size(), true);
+                    quorumBlock = new MLBlock(blockTransactions, getBlockHash(blockchain.getLast(), 0),
+                            blockchain.size(), intervalValidations, isVerified);
                 }
 
             } catch (NoSuchAlgorithmException e) {
@@ -763,11 +759,8 @@ public class Node  {
         }
     }
 
-    /* Add bools */
     public void sendSkeleton(){
         synchronized (lock){
-            //state = 0;
-
             if(DEBUG_LEVEL == 1) {
                 System.out.println("Node " + myAddress.getPort() + ": sendSkeleton invoked. qSigs " + quorumSigs);
             }
@@ -775,10 +768,16 @@ public class Node  {
             try {
                 if(quorumBlock == null){
                     System.out.println("Node " + myAddress.getPort() + ": sendSkeleton quorum null");
-
                 }
-                skeleton = new BlockSkeleton(quorumBlock.getBlockId(),
-                        new ArrayList<>(quorumBlock.getTxList().keySet()), quorumSigs, getBlockHash(quorumBlock, 0));
+                boolean allValid = true;
+                for (boolean validation : intervalValidations.values()) {
+                    if (!validation) {
+                        allValid = false;
+                        break;
+                    }
+                }
+                skeleton = new BlockSkeleton(quorumBlock.getBlockId(), new ArrayList<>(quorumBlock.getTxList().keySet()),
+                        quorumSigs, getBlockHash(quorumBlock, 0), intervalValidations, allValid);
             } catch (NoSuchAlgorithmException e) {
                 throw new RuntimeException(e);
             }
@@ -790,7 +789,6 @@ public class Node  {
         }
     }
 
-    /* Add bools */
     public void sendSkeleton(BlockSkeleton skeleton){
         synchronized (lock){
             if(DEBUG_LEVEL == 1) {
@@ -867,7 +865,6 @@ public class Node  {
             Block newBlock = constructBlockWithSkeleton(blockSkeleton);
             addBlock(newBlock);
             sendSkeleton(blockSkeleton);
-
         }
     }
 
@@ -882,8 +879,14 @@ public class Node  {
                 if(memPool.containsKey(key)){
                     blockTransactions.put(key, memPool.get(key));
                     memPool.remove(key);
-                }else{
-                    // need to ask for trans
+                }
+            }
+            intervalValidations = skeleton.getValidatedIntervals();
+            boolean allValid = true;
+            for (boolean validation : intervalValidations.values()) {
+                if (!validation) {
+                    allValid = false;
+                    break;
                 }
             }
 
@@ -897,8 +900,8 @@ public class Node  {
             }
             else if (USE.equals("ML")) {
                 try {
-                    newBlock = new MLBlock(blockTransactions,
-                            getBlockHash(blockchain.getLast(), 0), blockchain.size(), true);
+                    newBlock = new MLBlock(blockTransactions, getBlockHash(blockchain.getLast(), 0),
+                            blockchain.size(), intervalValidations, allValid);
                 }
                 catch (NoSuchAlgorithmException e) { throw new RuntimeException(e); }
             }
@@ -908,9 +911,9 @@ public class Node  {
     }
 
     private final Object stateLock = new Object();
-    private void stateChangeRequest(int statetoChange){
+    private void stateChangeRequest(int stateToChange){
         synchronized(stateLock){
-            state = statetoChange;
+            state = stateToChange;
         }
     }
 
@@ -1030,8 +1033,8 @@ public class Node  {
                 int seed = bigInt.intValue(); // This makes our seed
                 Random random = new Random(seed); // Makes our random in theory the same across all healthy nodes
                 int quorumNodeIndex; // The index from our global peers from which we select nodes to participate in next quorum
-                Address quorumNode; // The address of thenode from the quorumNode Index to go in to the quorum
-                //System.out.println("Node " + myAddress.getPort() + ": blockhash" + chainString(blockchain));
+                Address quorumNode; // The address of the node from the quorumNode Index to go in to the quorum
+                //System.out.println("Node " + myAddress.getPort() + ": block hash" + chainString(blockchain));
                 while(quorum.size() < QUORUM_SIZE){
                     quorumNodeIndex = random.nextInt(NUM_NODES); // may be wrong but should still work
                     quorumNode = globalPeers.get(quorumNodeIndex);
@@ -1124,6 +1127,7 @@ public class Node  {
     }
 
     private final int MAX_PEERS, NUM_NODES, QUORUM_SIZE, MIN_CONNECTIONS, DEBUG_LEVEL, MINIMUM_TRANSACTIONS;
+    private final boolean IS_MALICIOUS;
     private final Object lock, quorumLock, memPoolLock, quorumReadyVotesLock,
             memPoolRoundsLock, sigRoundsLock, blockLock, accountsLock, validationLock;
     private int quorumReadyVotes, memPoolRounds, validationResponses;
@@ -1139,6 +1143,7 @@ public class Node  {
     private final PrivateKey privateKey;
     private int state;
     private final String USE;
-    private final boolean isMalicious;
-    private HashMap<Integer, ArrayList<Boolean>> validationPairs;
+    private boolean validationComplete;
+    private HashMap<Integer, ArrayList<Boolean>> validationVotes;
+    private HashMap<Integer, Boolean> intervalValidations = new HashMap<>();
 }

@@ -1,5 +1,4 @@
 .idea
 target/
 src/main/java/node/nodeRegistry/*.txt
-src/main/java/config.properties
 ```
