@@ -145,7 +145,6 @@ public class Node  {
         }
         else if (USE.equals("ML")) {
             addBlock(new MLBlock(new HashMap<>(), "000000", 0, null, true));
-            // TODO: Initialize relevant data
         }
     }
 
@@ -282,7 +281,6 @@ public class Node  {
         }         
     }
 
-    //Reconcile blocks
     public void sendQuorumReady(){
         //state = 1;
         stateChangeRequest(1);
@@ -334,7 +332,6 @@ public class Node  {
         }
     }
 
-    //Reconcile blocks
     public void receiveQuorumReady(ObjectOutputStream oOut, ObjectInputStream oIn){
         synchronized (quorumReadyVotesLock){
             while(state != 1){
@@ -488,8 +485,26 @@ public class Node  {
      * @return index of which interval to re-compute
      */
     public int deriveTask(ModelData modelData) {
-        // TODO: Implement weight analysis algorithm
-        return 1;
+        // IntervalAlgorithm intervalAlgorithm = new IntervalAlgorithm();
+        String blockHash;
+        try {
+            blockHash = Hashing.getBlockHash(blockchain.getLast(), 0);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        // List<Integer> intervals = intervalAlgorithm.getIntervals(modelData, blockHash);
+        List<Integer> intervals = new ArrayList<>();
+
+        ArrayList<Address> quorum = deriveQuorum(blockchain.getLast(), 0);
+        Map<Address, Integer> quorumTasks = new HashMap<>();
+        int intervalIndex = 0;
+        for (Address address : quorum) {
+            quorumTasks.put(address, intervals.get(intervalIndex));
+            if (intervalIndex == intervals.size() - 1) { intervalIndex = 0; }
+            else { intervalIndex++; }
+        }
+
+        return quorumTasks.get(myAddress);
     }
 
     public void validateModel(ModelData modelData) {

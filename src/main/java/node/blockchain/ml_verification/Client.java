@@ -12,11 +12,11 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.regex.Pattern;
 
 public class Client {
-
     BufferedReader reader; // To read user input
     ArrayList<Account> accounts; // Our DeFi account list
     ServerSocket ss;
@@ -176,8 +176,10 @@ public class Client {
         String modelSnapshotsFilePath = reader.readLine();
 
         // Hard code:
-        boolean[] myArray = {true, true, true, true, true};
-        ModelData modelData = new ModelData(modelSnapshotsFilePath, String.valueOf(System.currentTimeMillis()), myArray);
+        boolean[] intervalValidity = new boolean[20];
+        Arrays.fill(intervalValidity, true);
+
+        ModelData modelData = new ModelData(modelSnapshotsFilePath, String.valueOf(System.currentTimeMillis()), intervalValidity);
 
         System.out.println("Submitting model to nodes: ");
         for(Address address : fullNodes){
