@@ -49,9 +49,9 @@ public class Utils {
                 }
                 if(blockChain.get(i).getTxList().size() > 0){
                     hash = hash.concat(" tx{" + blockChain.get(i).getTxList().values() + "}");
-                    if (currBlock instanceof MLBlock) {
-                        hash = hash.concat(" verified: " + ((MLBlock) currBlock).isVerified());
-                    }
+                }
+                if (currBlock instanceof MLBlock) {
+                    hash = hash.concat(" verified: " + ((MLBlock) currBlock).isVerified());
                 }
                 chainString = chainString.concat(blockChain.get(i).getBlockId() + " " + hash + ", ");
             }
@@ -63,7 +63,10 @@ public class Utils {
                     e.printStackTrace();
                 }
                 if(block.getTxList().size() > 0){
-                    hash = hash.concat(" tx{" + block.getTxList().values().toString() + "}");
+                    hash = hash.concat(" tx{" + block.getTxList().values() + "}");
+                }
+                if (block instanceof MLBlock) {
+                    hash = hash.concat(" verified: " + ((MLBlock) block).isVerified());
                 }
                 chainString = chainString.concat(block.getBlockId() + " " + hash + ", ");
             }
