@@ -486,15 +486,14 @@ public class Node  {
      * @return index of which interval to re-compute
      */
     public int deriveTask(ModelData modelData) {
-        // IntervalAlgorithm intervalAlgorithm = new IntervalAlgorithm();
+        TaskDelegation taskDelegation = new TaskDelegation();
         String blockHash;
         try {
             blockHash = Hashing.getBlockHash(blockchain.getLast(), 0);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-        // List<Integer> intervals = intervalAlgorithm.getIntervals(modelData, blockHash);
-        List<Integer> intervals = new ArrayList<>();
+        List<Integer> intervals = taskDelegation.getIntervals(modelData, blockHash);
 
         ArrayList<Address> quorum = deriveQuorum(blockchain.getLast(), 0);
         Map<Address, Integer> quorumTasks = new HashMap<>();
