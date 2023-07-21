@@ -485,7 +485,7 @@ public class Node  {
      * @param modelData modelData to derive re-computation task from
      * @return index of which interval to re-compute
      */
-    public int deriveTask(ModelData modelData) {
+    public Integer deriveTask(ModelData modelData) {
         TaskDelegation taskDelegation = new TaskDelegation();
         String blockHash;
         try {
@@ -496,19 +496,20 @@ public class Node  {
         List<Integer> intervals = taskDelegation.getIntervals(modelData, blockHash);
 
         ArrayList<Address> quorum = deriveQuorum(blockchain.getLast(), 0);
-        Map<Address, Integer> quorumTasks = new HashMap<>();
+        Map<String, Integer> quorumTasks = new HashMap<>();
         int intervalIndex = 0;
         for (Address address : quorum) {
-            quorumTasks.put(address, intervals.get(intervalIndex));
+            quorumTasks.put(address.toString(), intervals.get(intervalIndex));
             if (intervalIndex == intervals.size() - 1) { intervalIndex = 0; }
             else { intervalIndex++; }
         }
 
-        return quorumTasks.get(myAddress);
+        return quorumTasks.get(myAddress.toString());
     }
 
     public void validateModel(ModelData modelData) {
-        int myIntervalIndex = deriveTask(modelData);
+        Integer myIntervalIndex = deriveTask(modelData);
+        int test = (int) myIntervalIndex;
 
         // Simulate re-computation and malicious behavior
         boolean isMyIntervalValid = modelData.getIntervalsValidity()[myIntervalIndex];

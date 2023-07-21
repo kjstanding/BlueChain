@@ -1,7 +1,6 @@
 package node.communication.utils;
 
 import node.blockchain.ml_verification.ModelData;
-import org.apache.commons.math3.distribution.NormalDistribution;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +19,6 @@ public class TaskDelegation {
         double percentage = 0.5;
 
         List<Integer> resultArray = createSubset(indexes, subsetIndexes, percentage, lastBlockHash);
-        Collections.sort(resultArray);
 
         System.out.println("Resulting array: " + resultArray);
         return resultArray;
@@ -80,7 +78,7 @@ public class TaskDelegation {
             }
 
             return outputArray;
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException | InterruptedException | RuntimeException e) {
             System.out.println("Error executing python script");
             e.printStackTrace();
             return Arrays.asList(4, 10, 13);
@@ -92,8 +90,7 @@ public class TaskDelegation {
         double variance = indexes.stream().mapToDouble(i -> Math.pow(i - mean, 2)).average().orElse(0.0);
         double stdDev = Math.sqrt(variance);
 
-        NormalDistribution normalDistribution = new NormalDistribution(mean, stdDev);
-        double[] weights = indexes.stream().mapToDouble(normalDistribution::density).toArray();
+        double[] weights = indexes.stream().mapToDouble(i -> calculateNormalDensity(i, mean, stdDev)).toArray();
 
         double maxWeight = Arrays.stream(weights).max().orElse(0.0);
         weights = Arrays.stream(weights).map(w -> Math.abs(w - maxWeight)).toArray();
@@ -102,6 +99,11 @@ public class TaskDelegation {
         weights = Arrays.stream(weights).map(w -> w / sumWeights).toArray();
 
         return weights;
+    }
+
+    private static double calculateNormalDensity(int x, double mean, double stdDev) {
+        double exponent = Math.exp(-(Math.pow(x - mean, 2) / (2 * Math.pow(stdDev, 2))));
+        return (1 / (Math.sqrt(2 * Math.PI) * stdDev)) * exponent;
     }
 
     public static List<Integer> createSubset(List<Integer> indexes, List<Integer> subsetIndexes,
