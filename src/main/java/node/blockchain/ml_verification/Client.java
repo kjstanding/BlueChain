@@ -14,6 +14,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class Client {
@@ -171,13 +172,65 @@ public class Client {
     }
 
     public void submitModel() throws IOException{
-        System.out.println("Collecting model data");
-        System.out.println("File path to model snapshots?");
-        String modelSnapshotsFilePath = reader.readLine();
+        // hardcoded filepaths and interval validity
+        ArrayList<String> cleanModelFiles = new ArrayList<>();
+        ArrayList<String> randomPoisonedModelFiles = new ArrayList<>();
+        ArrayList<String> groupedPoisonedModelFiles = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            cleanModelFiles.add("/Users/kjstanding/Projects/MNIST_NeuralNetwork/clean_model_snapshots/model_" + i);
+            if (i < 5) {
+                randomPoisonedModelFiles
+                        .add("/Users/kjstanding/Projects/MNIST_NeuralNetwork/random_poisoned_model_snapshots/model_" + i);
+                groupedPoisonedModelFiles
+                        .add("/Users/kjstanding/Projects/MNIST_NeuralNetwork/grouped_poisoned_model_snapshots/model_" + i);
+            }
+        }
 
-        // Hard code:
+        ArrayList<int[]> randomPoisonedIntervals = new ArrayList<>();
+        randomPoisonedIntervals.add(0, new int[]{8, 11, 9, 12, 7});
+        randomPoisonedIntervals.add(1, new int[]{9, 5, 17, 11, 12});
+        randomPoisonedIntervals.add(2, new int[]{10, 8, 1, 6, 3});
+        randomPoisonedIntervals.add(3, new int[]{18, 17, 2, 1, 3});
+        randomPoisonedIntervals.add(4, new int[]{15, 7, 6, 10, 17});
+        ArrayList<int[]> groupedPoisonedIntervals = new ArrayList<>();
+        groupedPoisonedIntervals.add(0, new int[]{0, 1, 2, 3, 4});
+        groupedPoisonedIntervals.add(1, new int[]{15, 16, 17, 18, 19});
+        groupedPoisonedIntervals.add(2, new int[]{10, 11, 12, 13, 14});
+        groupedPoisonedIntervals.add(3, new int[]{10, 11, 12, 13, 14});
+        groupedPoisonedIntervals.add(4, new int[]{10, 11, 12, 13, 14});
+
+        System.out.println("Collecting model data");
+        System.out.println("Clean, random poisoned, or grouped poisoned? ('c', 'r', or 'g'): ");
+        String modelType = reader.readLine();
+
+        System.out.println("Which model? (0-9) for clean. (0-4) for poisoned: ");
+        int indexString = Integer.parseInt(reader.readLine());
+
+        String modelSnapshotsFilePath;
+        switch (modelType) {
+            case "c":
+                modelSnapshotsFilePath = cleanModelFiles.get(indexString);
+                break;
+            case "r":
+                modelSnapshotsFilePath = randomPoisonedModelFiles.get(indexString);
+                break;
+            case "g":
+                modelSnapshotsFilePath = groupedPoisonedModelFiles.get(indexString);
+                break;
+            default:
+                System.out.println("Invalid option");
+                return;
+        }
+
         boolean[] intervalValidity = new boolean[20];
         Arrays.fill(intervalValidity, true);
+        if (Objects.equals(modelType, "r") || Objects.equals(modelType, "g")) {
+            int[] indexes = (Objects.equals(modelType, "r")) ? randomPoisonedIntervals.get(indexString)
+                    : groupedPoisonedIntervals.get(indexString);
+            for (int index : indexes) {
+                intervalValidity[index] = false;
+            }
+        }
 
         ModelData modelData = new ModelData(modelSnapshotsFilePath, String.valueOf(System.currentTimeMillis()), intervalValidity);
 

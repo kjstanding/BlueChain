@@ -2,7 +2,7 @@ import sys
 import json
 import os
 import re
-import math
+import numpy as np
 
 from keras.models import load_model
 
@@ -13,8 +13,8 @@ def compare_weights(model1, model2):
     """Compare weights of two models."""
     params1 = model1.get_weights()
     params2 = model2.get_weights()
-    diff = [math.sqrt(sum((p1_i - p2_i)**2 for p1_i, p2_i in zip(p1, p2))) for p1, p2 in zip(params1, params2)]
-    return sum(diff)
+    diff = [np.linalg.norm(p1 - p2) for p1, p2 in zip(params1, params2)]
+    return np.sum(diff)
 
 
 def extract_number(filename):
