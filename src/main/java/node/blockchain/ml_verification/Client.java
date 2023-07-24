@@ -177,12 +177,12 @@ public class Client {
         ArrayList<String> randomPoisonedModelFiles = new ArrayList<>();
         ArrayList<String> groupedPoisonedModelFiles = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            cleanModelFiles.add("/Users/kjstanding/Projects/MNIST_NeuralNetwork/clean_model_snapshots/model_" + i);
+            cleanModelFiles.add("/Users/kjstanding/Projects/BlueChain/NN_Models/clean_model_snapshots/model_" + i);
             if (i < 5) {
                 randomPoisonedModelFiles
-                        .add("/Users/kjstanding/Projects/MNIST_NeuralNetwork/random_poisoned_model_snapshots/model_" + i);
+                        .add("/Users/kjstanding/Projects/BlueChain/NN_Models/random_poisoned_model_snapshots/model_" + i);
                 groupedPoisonedModelFiles
-                        .add("/Users/kjstanding/Projects/MNIST_NeuralNetwork/grouped_poisoned_model_snapshots/model_" + i);
+                        .add("/Users/kjstanding/Projects/BlueChain/NN_Models/grouped_poisoned_model_snapshots/model_" + i);
             }
         }
 
