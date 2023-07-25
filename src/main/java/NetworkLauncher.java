@@ -50,6 +50,7 @@ public class NetworkLauncher {
             if (args.length > 0 && args[0].equals("-t")) timedWaitDelay = Integer.parseInt(args[1]);
 
             int numMaliciousNodes = (int) Math.ceil(numNodes * percentMalicious);
+            System.out.println("Num malicious nodes: " + numMaliciousNodes);
 
             // List of node objects for the launcher to start
             ArrayList<Node> nodes = new ArrayList<>();

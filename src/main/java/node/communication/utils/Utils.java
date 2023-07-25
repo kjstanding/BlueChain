@@ -40,7 +40,8 @@ public class Utils {
 
 
         if(blockChain.size() > 6){
-            for (int i = blockChain.size() - 6; i < blockChain.size(); i++) {
+            // Print out whole chain
+            for (int i = 0; i < blockChain.size(); i++) {
                 Block currBlock = blockChain.get(i);
                 try {
                     hash = getBlockHash(blockChain.get(i), 0).substring(0, 4);

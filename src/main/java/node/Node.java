@@ -26,6 +26,7 @@ import node.communication.utils.Utils;
 import java.io.*;
 import java.math.BigInteger;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -495,7 +496,13 @@ public class Node  {
         }
         List<Integer> intervals = taskDelegation.getIntervals(modelData, blockHash);
 
+        byte[] seedBytes = blockHash.getBytes(StandardCharsets.UTF_8);
+        long seed = 0;
+        for (byte seedByte : seedBytes) { seed = (seed << 8) | (seedByte & 0xFF); }
+
         ArrayList<Address> quorum = deriveQuorum(blockchain.getLast(), 0);
+        Collections.shuffle(quorum, new Random(seed));
+
         Map<String, Integer> quorumTasks = new HashMap<>();
         int intervalIndex = 0;
         for (Address address : quorum) {
@@ -509,10 +516,10 @@ public class Node  {
 
     public void validateModel(ModelData modelData) {
         Integer myIntervalIndex = deriveTask(modelData);
-        int test = (int) myIntervalIndex;
 
         // Simulate re-computation and malicious behavior
         boolean isMyIntervalValid = modelData.getIntervalsValidity()[myIntervalIndex];
+        // if (IS_MALICIOUS && !isMyIntervalValid) isMyIntervalValid = true;
         if (IS_MALICIOUS) isMyIntervalValid = !isMyIntervalValid;
 
         Object[] validationPair = new Object[] {isMyIntervalValid, myIntervalIndex};
