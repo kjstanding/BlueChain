@@ -27,5 +27,6 @@ public class MLBlock extends Block {
         }
     }
 
+    public HashMap<Integer, Boolean> getValidatedIntervals() { return validatedIntervals; }
     public boolean isVerified() { return isVerified; }
 }

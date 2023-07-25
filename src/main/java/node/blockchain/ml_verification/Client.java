@@ -109,7 +109,7 @@ public class Client {
             else if(args[0].equals("-test")){
                 Client wallet = new Client(port);
                 wallet.test = true;
-                wallet.testNetwork(Integer.valueOf(args[1]));
+                wallet.testNetwork();
                 System.exit(0); // We just test then exit
             }
         }
@@ -134,6 +134,9 @@ public class Client {
             switch(input){
                 case("t"):
                     submitModel();
+                    break;
+                case("test"):
+                    testNetwork();
                     break;
                 case("u"):
                     updateFullNode();
@@ -177,12 +180,12 @@ public class Client {
         ArrayList<String> randomPoisonedModelFiles = new ArrayList<>();
         ArrayList<String> groupedPoisonedModelFiles = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            cleanModelFiles.add("/Users/kjstanding/Projects/BlueChain/NN_Models/clean_model_snapshots/model_" + i);
+            cleanModelFiles.add("C:\\Users\\kjsta\\Projects\\BlueChain\\NN_Models\\clean_model_snapshots\\model_" + i);
             if (i < 5) {
                 randomPoisonedModelFiles
-                        .add("/Users/kjstanding/Projects/BlueChain/NN_Models/random_poisoned_model_snapshots/model_" + i);
+                        .add("C:\\Users\\kjsta\\Projects\\BlueChain\\NN_Models\\random_poisoned_model_snapshots\\model_" + i);
                 groupedPoisonedModelFiles
-                        .add("/Users/kjstanding/Projects/BlueChain/NN_Models/grouped_poisoned_model_snapshots/model_" + i);
+                        .add("C:\\Users\\kjsta\\Projects\\BlueChain\\NN_Models\\grouped_poisoned_model_snapshots\\model_" + i);
             }
         }
 
@@ -262,9 +265,95 @@ public class Client {
         System.out.println("BlueChain NN Verification Client Usage:");
         System.out.println("t: Create a transaction");
         System.out.println("u: Update full nodes");
+        System.out.println("test: Test network with predetermined models");
     }
 
-    private void testNetwork(Integer integer) {}
+    private void testNetwork() {
+        ArrayList<String> cleanModelFiles = new ArrayList<>();
+        ArrayList<String> randomPoisonedModelFiles = new ArrayList<>();
+        ArrayList<String> groupedPoisonedModelFiles = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            cleanModelFiles.add("C:\\Users\\kjsta\\Projects\\BlueChain\\NN_Models\\clean_model_snapshots\\model_" + i);
+            if (i < 5) {
+                randomPoisonedModelFiles
+                        .add("C:\\Users\\kjsta\\Projects\\BlueChain\\NN_Models\\random_poisoned_model_snapshots\\model_" + i);
+                groupedPoisonedModelFiles
+                        .add("C:\\Users\\kjsta\\Projects\\BlueChain\\NN_Models\\grouped_poisoned_model_snapshots\\model_" + i);
+            }
+        }
+
+        ArrayList<int[]> randomPoisonedIntervals = new ArrayList<>();
+        randomPoisonedIntervals.add(0, new int[]{8, 11, 9, 12, 7});
+        randomPoisonedIntervals.add(1, new int[]{9, 5, 17, 11, 12});
+        randomPoisonedIntervals.add(2, new int[]{10, 8, 1, 6, 3});
+        randomPoisonedIntervals.add(3, new int[]{18, 17, 2, 1, 3});
+        randomPoisonedIntervals.add(4, new int[]{15, 7, 6, 10, 17});
+        ArrayList<int[]> groupedPoisonedIntervals = new ArrayList<>();
+        groupedPoisonedIntervals.add(0, new int[]{0, 1, 2, 3, 4});
+        groupedPoisonedIntervals.add(1, new int[]{15, 16, 17, 18, 19});
+        groupedPoisonedIntervals.add(2, new int[]{10, 11, 12, 13, 14});
+        groupedPoisonedIntervals.add(3, new int[]{10, 11, 12, 13, 14});
+        groupedPoisonedIntervals.add(4, new int[]{10, 11, 12, 13, 14});
+
+        boolean[] intervalValidity;
+
+        intervalValidity = new boolean[20];
+        Arrays.fill(intervalValidity, true);
+        for (String file : cleanModelFiles) {
+            ModelData modelData = new ModelData(file, String.valueOf(System.currentTimeMillis()), intervalValidity);
+            System.out.println("Submitting clean models to nodes: ");
+            for(Address address : fullNodes){
+                submitModel(modelData, address);
+            }
+            try {
+                Thread.sleep(170000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        for (int i = 0; i < 5; i++) {
+            String file = randomPoisonedModelFiles.get(i);
+            intervalValidity = new boolean[20];
+            Arrays.fill(intervalValidity, true);
+            int[] indexes = randomPoisonedIntervals.get(i);
+            for (int index : indexes) {
+                intervalValidity[index] = false;
+            }
+
+            ModelData modelData = new ModelData(file, String.valueOf(System.currentTimeMillis()), intervalValidity);
+            System.out.println("Submitting random poisoned model #" + i + " to nodes: ");
+            for(Address address : fullNodes){
+                submitModel(modelData, address);
+            }
+            try {
+                Thread.sleep(170000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        for (int i = 0; i < 5; i++) {
+            String file = groupedPoisonedModelFiles.get(i);
+            intervalValidity = new boolean[20];
+            Arrays.fill(intervalValidity, true);
+            int[] indexes = groupedPoisonedIntervals.get(i);
+            for (int index : indexes) {
+                intervalValidity[index] = false;
+            }
+
+            ModelData modelData = new ModelData(file, String.valueOf(System.currentTimeMillis()), intervalValidity);
+            System.out.println("Submitting group poisoned model #" + i + " to nodes: ");
+            for(Address address : fullNodes){
+                submitModel(modelData, address);
+            }
+            try {
+                Thread.sleep(170000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
     class Acceptor extends Thread {
         Client client;

@@ -11,10 +11,8 @@ import java.util.stream.IntStream;
 public class TaskDelegation {
     public List<Integer> getIntervals(ModelData modelData, String lastBlockHash) {
         List<Integer> indexes = IntStream.rangeClosed(0, 19).boxed().collect(Collectors.toList());
-        System.out.println("Original list: " + indexes);
 
         List<Integer> subsetIndexes = weightAnalysis(modelData.getSnapshotsFilePath());
-        System.out.println("Pre-selected subset: " + subsetIndexes);
 
         double percentage = 0.5;
 
@@ -27,7 +25,7 @@ public class TaskDelegation {
     public List<Integer> weightAnalysis(String snapshotsFilePath) {
         try {
             List<String> command = new ArrayList<>();
-            command.add("/Users/kjstanding/Projects/MNIST_NeuralNetwork/venv/bin/python");
+            command.add("C:\\Users\\kjsta\\Projects\\BlueChain\\venv\\Scripts\\python.exe");
             command.add("weight_analysis.py");
 
             File file = new File(snapshotsFilePath);
