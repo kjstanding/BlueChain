@@ -2,4 +2,5 @@
 target/
 src/main/java/node/nodeRegistry/*.txt
 NN_Models/
+network.iml
 ```
