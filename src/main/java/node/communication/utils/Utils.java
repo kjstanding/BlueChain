@@ -2,6 +2,7 @@ package node.communication.utils;
 
 import node.blockchain.Block;
 import node.blockchain.Transaction;
+import node.blockchain.ml_verification.MLBlock;
 import node.communication.Address;
 
 import java.security.*;
@@ -9,7 +10,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.Set;
 
 import static node.communication.utils.Hashing.getBlockHash;
 
@@ -40,14 +40,19 @@ public class Utils {
 
 
         if(blockChain.size() > 6){
-            for(int i = blockChain.size() - 6; i < blockChain.size(); i++){
+            // Print out whole chain
+            for (int i = 0; i < blockChain.size(); i++) {
+                Block currBlock = blockChain.get(i);
                 try {
                     hash = getBlockHash(blockChain.get(i), 0).substring(0, 4);
                 } catch (NoSuchAlgorithmException e) {
                     e.printStackTrace();
                 }
                 if(blockChain.get(i).getTxList().size() > 0){
-                    hash = hash.concat(" tx{" + blockChain.get(i).getTxList().values().toString() + "}");
+                    hash = hash.concat(" tx{" + blockChain.get(i).getTxList().values() + "}");
+                }
+                if (currBlock instanceof MLBlock) {
+                    hash = hash.concat(" verified: " + ((MLBlock) currBlock).isVerified());
                 }
                 chainString = chainString.concat(blockChain.get(i).getBlockId() + " " + hash + ", ");
             }
@@ -59,7 +64,10 @@ public class Utils {
                     e.printStackTrace();
                 }
                 if(block.getTxList().size() > 0){
-                    hash = hash.concat(" tx{" + block.getTxList().values().toString() + "}");
+                    hash = hash.concat(" tx{" + block.getTxList().values() + "}");
+                }
+                if (block instanceof MLBlock) {
+                    hash = hash.concat(" verified: " + ((MLBlock) block).isVerified());
                 }
                 chainString = chainString.concat(block.getBlockId() + " " + hash + ", ");
             }

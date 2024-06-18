@@ -1,10 +1,8 @@
 import node.Node;
 import node.communication.Address;
-import node.communication.utils.Utils;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -14,10 +12,8 @@ import java.util.StringTokenizer;
  * Launches a network given specified configurations
  */
 public class NetworkLauncher {
-
     /* Make a list of the entirety of each node's address */
-    private static final ArrayList<Address> globalPeers = new ArrayList<Address>();
-
+    private static final ArrayList<Address> globalPeers = new ArrayList<>();
 
     public static void main(String[] args) {
         String usage = "Usage: NetworkLauncher " +
@@ -46,24 +42,26 @@ public class NetworkLauncher {
             int startingPort = Integer.parseInt(prop.getProperty("STARTING_PORT"));
             int quorumSize = Integer.parseInt(prop.getProperty("QUORUM"));
             int minimumTransactions = Integer.parseInt(prop.getProperty("MINIMUM_TRANSACTIONS"));
+            float percentMalicious = Float.parseFloat(prop.getProperty("PERCENT_MALICIOUS"));
             int debugLevel = Integer.parseInt(prop.getProperty("DEBUG_LEVEL"));
             String use = prop.getProperty("USE");
 
-
-
-            /* List of node objects for the launcher to start*/
-            ArrayList<Node> nodes = new ArrayList<Node>();
-
             int timedWaitDelay = 0;
+            if (args.length > 0 && args[0].equals("-t")) timedWaitDelay = Integer.parseInt(args[1]);
 
-            if (args.length > 0 && args[0].equals("-t")) {
-                timedWaitDelay = Integer.parseInt(args[1]);
-            }
+            int numMaliciousNodes = (int) Math.ceil(numNodes * percentMalicious);
+            System.out.println("Num malicious nodes: " + numMaliciousNodes);
 
+            // List of node objects for the launcher to start
+            ArrayList<Node> nodes = new ArrayList<>();
             for (int i = startingPort; i < startingPort + numNodes; i++) {
-                nodes.add(new Node(use, i, maxConnections, minConnections, numNodes, quorumSize, minimumTransactions, debugLevel));
+                if (nodes.size() < numMaliciousNodes)
+                    nodes.add(new Node(use, i, maxConnections, minConnections, numNodes,
+                            quorumSize, minimumTransactions, debugLevel, true));
+                else
+                    nodes.add(new Node(use, i, maxConnections, minConnections, numNodes,
+                            quorumSize, minimumTransactions, debugLevel, false));
             }
-
 
             try {
                 Thread.sleep(timedWaitDelay);
@@ -75,11 +73,12 @@ public class NetworkLauncher {
             String path = "./src/main/java/node/nodeRegistry/";
             File folder = new File(path);
             File[] registeredNodes = folder.listFiles();
+            assert registeredNodes != null;
 
-            for (int i = 0; i < registeredNodes.length; i++) {
-                String name = registeredNodes[i].getName();
+            for (File registeredNode : registeredNodes) {
+                String name = registeredNode.getName();
 
-                if(!name.contains("keep")){
+                if (!name.contains("keep")) {
                     st = new StringTokenizer(name, "_");
                     String host = st.nextToken();
                     int port = Integer.parseInt(st.nextToken().replaceFirst(".txt", ""));
@@ -90,8 +89,6 @@ public class NetworkLauncher {
             NetworkLauncher n = new NetworkLauncher();
             n.startNetworkClients(globalPeers, nodes); // Begins network connections
 
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (NumberFormatException e){
@@ -102,26 +99,23 @@ public class NetworkLauncher {
 
     /* Gives each node a thread to start node connections */
     public void startNetworkClients(ArrayList<Address> globalPeers, ArrayList<Node> nodes){
-        for(int i = 0; i < nodes.size(); i++){
-            //Collections.shuffle(globalPeers);
-            new NodeLauncher(nodes.get(i), globalPeers).start();
+        for (Node node : nodes) {
+            new NodeLauncher(node, globalPeers).start();
         }
     }
 
     /**
      * Thread which is assigned to start a single node within the NetworkLaunchers managed nodes
      */
-    class NodeLauncher extends Thread {
+    static class NodeLauncher extends Thread {
         Node node;
         ArrayList<Address> globalPeers;
 
-        NodeLauncher(Node node, ArrayList<Address> globalPeers){
+        NodeLauncher(Node node, ArrayList<Address> globalPeers) {
             this.node = node;
             this.globalPeers = globalPeers;
         }
 
-        public void run() {
-            node.requestConnections(globalPeers);
-        }
+        public void run() { node.requestConnections(globalPeers); }
     }
 }
